@@ -16,13 +16,45 @@ provider "aws" {
 # Create new subnet
 # move instance into subnet
 resource "aws_subnet" "app_subnet" {
-    vpc_id = "vpc-07e47e9d90d2076da"
+    vpc_id = var.vpc_id
     cidr_block = "172.31.85.0/24"
     availability_zone = "eu-west-1a"
     tags = {
-        Name = "ENG54-maksaud-subnet-public"
+        Name = var.name
     }
 }
+
+# Route table
+resource "aws_route_table" "public" {
+    vpc_id = var.vpc_id
+    route {
+        cidr_block = "0.0.0.0/0"
+        gateway_id = data.aws_internet_gateway.default-gw.id
+    }
+
+    tags = {
+        Name = "${var.name}-public"
+    }
+
+}
+
+resource "aws_route_table_association" "assoc" {
+    subnet_id = aws_subnet.app_subnet.id
+    route_table_id = aws_route_table.public.id
+}
+
+
+
+# We don't need a new IG -
+# We can query our exist vpc/infrastructure with the 'data' handler/function
+data "aws_internet_gateway" "default-gw" {
+    filter {
+        name = "attachment.vpc-id"
+        values = [var.vpc_id]
+    }
+  
+}
+
 
 # Launching an instance
 resource "aws_instance" "app_instance" {
